@@ -1,0 +1,122 @@
+registry:
+	docker run --rm -d -p 8123:5000 --name registry registry:2
+
+set-pass:
+	htpasswd -Bbn admin 123 > ./htpasswd
+
+push-docker:
+	docker pull docker:19.03.1 && \
+	docker tag docker:19.03.1 localhost:8123/docker:19.03.1 && \
+	echo 123 | docker login localhost:8123 --username admin --password-stdin && \
+	docker push localhost:8123/docker:19.03.1
+
+push-go:
+	docker pull golang:1.15 && \
+	docker tag golang:1.15 localhost:8123/golang:1.15 && \
+	echo 123 | docker login localhost:8123 --username admin --password-stdin && \
+	docker push localhost:8123/golang:1.15
+
+docker pull golang:1.15 && docker tag golang:1.15 localhost:8123/golang:1.15 &&  echo dAj4w@7fl | docker login localhost:8123 --username admin --password-stdin && docker push localhost:8123/golang:1.15
+
+linter:
+	gitlab-runner exec docker linter
+
+cover:
+	gitlab-runner exec docker \
+		--env COV_FILE=.testCoverage.test \
+		--env LOG_SERVER_URL=:8788 \
+		--env LOG_DB_CONNECTION_STRING=http://elasticsearch:9200 \
+		--env LOG_DB_INDEX_NAME=test_mobile_app_logs \
+		cover
+
+docker-prod:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		docker
+
+vm-deploy-prod:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--env PORT=5551 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		vm-deploy
+
+compile:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		--docker-volumes ~/Downloads/output \
+		compile
+
+docker-test:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		docker-test
+
+vm-deploy-test:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--env TEST_LOG_SERVER_URL=:8788 \
+		--env TEST_LOG_DB_CONNECTION_STRING=http://elasticsearch:9200 \
+		--env TEST_LOG_DB_INDEX_NAME=test_mobile_app_logs \
+		--env DEV_PORT=5552 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		vm-deploy-test
+
+docker-qa:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		docker-qa
+
+vm-deploy-qa:
+	gitlab-runner exec docker \
+		--env DOCKER_AUTH_CONFIG="{\"auths\":{\"localhost:8123\":{\"auth\":\"YWRtaW46MTIz\"}}}" \
+		--env CI_REGISTRY_USER=admin \
+		--env CI_REGISTRY_PASSWORD=123 \
+		--env CI_REGISTRY=localhost:8123 \
+		--env QA_PORT=5553 \
+		--docker-extra-hosts localhost:192.168.1.2 \
+		--docker-volumes="/var/run/docker.sock:/var/run/docker.sock" \
+		vm-deploy-qa
+
+all: linter \
+	 docker-test \
+	 vm-deploy-test \
+	 docker-qa \
+	 vm-deploy-qa \
+	 docker-prod \
+	 vm-deploy-prod
+
+t:
+	linter \
+	cover \
+	compile \
+	docker-test \
+	vm-deploy-test

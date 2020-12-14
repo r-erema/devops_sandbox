@@ -1,0 +1,181 @@
+image: node:12.4.0-alpine
+
+variables: &envs
+  GROUP_NAME: gitlab.itechart-group.com/d6.g3
+  REPO_NAME: $GROUP_NAME/room-booking-admin
+  GIT_SSL_NO_VERIFY: "true"
+  DOCKER_TLS_CERTDIR: ""
+  CACHE_PATH: .cache
+  CACHE_KEY: core-cache
+  BIN_NAME: booking-admin-panel
+  DOCKER_IMAGE_LABEL_KEY: adminpanel
+  CI_REGISTRY_USER: admin
+
+stages:
+  - lint
+  - push
+  - deploy
+
+linter:
+  variables:
+    <<: *envs
+  stage: lint
+  script:
+    - yarn install
+    - yarn lint
+
+docker:
+  variables:
+    <<: *envs
+    DOCKER_TAG: prod
+    DOCKER_IMAGE_LABEL_VALUE: prod
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin
+  tags:
+    - docker
+  services:
+    - docker:dind
+  stage: push
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    - tags
+    - master
+  script:
+    - docker build -t ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+      --build-arg REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+      --label ${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE} .
+    - docker push ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+  after_script:
+    - docker logout
+
+docker-test:
+  variables:
+    <<: *envs
+    DOCKER_TAG: test
+    DOCKER_IMAGE_LABEL_VALUE: test
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin
+  tags:
+    - docker
+  services:
+    - docker:dind
+  stage: push
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    refs:
+      - dev
+  script:
+    - docker build -t ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+      --build-arg REACT_APP_API_BASE_URL=${TEST_REACT_APP_API_BASE_URL}
+      --label ${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE} .
+    - docker push ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+  after_script:
+    - docker logout
+
+docker-qa:
+  variables:
+    <<: *envs
+    DOCKER_TAG: qa
+    DOCKER_IMAGE_LABEL_VALUE: qa
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin
+  tags:
+    - docker
+  services:
+    - docker:dind
+  stage: push
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    refs:
+      - /^release\/.*$/
+  script:
+    - docker build -t ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+      --build-arg REACT_APP_API_BASE_URL=${QA_REACT_APP_API_BASE_URL}
+      --label ${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE} .
+    - docker push ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+  after_script:
+    - docker logout
+
+vm-deploy:
+  variables:
+    <<: *envs
+    DOCKER_TAG: prod
+    DOCKER_IMAGE_LABEL_VALUE: prod
+  before_script:
+    - echo ${CI_REGISTRY_PASSWORD} | docker login ${CI_REGISTRY} --username ${CI_REGISTRY_USER} --password-stdin
+  tags:
+    - docker
+  stage: deploy
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    - tags
+    - master
+  script:
+    - for container_id in $(docker ps -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker stop $container_id;docker rm $container_id;done
+    - for image_id in $(docker images -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker rmi $image_id;done
+    - docker run -d -v /etc/localtime:/etc/localtime:ro --restart=unless-stopped
+      -p "${PORT}:3000"
+      --name ${BIN_NAME}-${DOCKER_TAG}
+      ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+  after_script:
+    - docker logout
+
+vm-deploy-test:
+  variables:
+    <<: *envs
+    DOCKER_TAG: test
+    DOCKER_IMAGE_LABEL_VALUE: test
+  before_script:
+    - echo ${CI_REGISTRY_PASSWORD} | docker login ${CI_REGISTRY} --username ${CI_REGISTRY_USER} --password-stdin
+  tags:
+    - docker
+  stage: deploy
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    refs:
+      - dev
+  script:
+    - for container_id in $(docker ps -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker stop $container_id;docker rm $container_id;done
+    - for image_id in $(docker images -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker rmi $image_id;done
+    - docker run -d -v /etc/localtime:/etc/localtime:ro --restart=unless-stopped
+      -p "${TEST_PORT}:3000"
+      --name ${BIN_NAME}-${DOCKER_TAG}
+      ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+  after_script:
+    - docker logout
+
+vm-deploy-qa:
+  variables:
+    <<: *envs
+    DOCKER_TAG: qa
+    DOCKER_IMAGE_LABEL_VALUE: qa
+  before_script:
+    - echo ${CI_REGISTRY_PASSWORD} | docker login ${CI_REGISTRY} --username ${CI_REGISTRY_USER} --password-stdin
+  tags:
+    - docker
+  stage: deploy
+  when: manual
+  image: localhost:8123/docker:19.03.1
+  only:
+    refs:
+      - /^release\/.*$/
+  script:
+    - for container_id in $(docker ps -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker stop $container_id;docker rm $container_id;done
+    - for image_id in $(docker images -aq --filter="label=${DOCKER_IMAGE_LABEL_KEY}=${DOCKER_IMAGE_LABEL_VALUE}");
+      do docker rmi $image_id;done
+    - docker run -d -v /etc/localtime:/etc/localtime:ro --restart=unless-stopped
+      -p "${QA_PORT}:3000"
+      --name ${BIN_NAME}-${DOCKER_TAG}
+      ${CI_REGISTRY}/${BIN_NAME}:${DOCKER_TAG}
+after_script:
+    - docker logout
