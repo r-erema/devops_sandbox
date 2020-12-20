@@ -16,8 +16,6 @@ push-go:
 	echo 123 | docker login localhost:8123 --username admin --password-stdin && \
 	docker push localhost:8123/golang:1.15
 
-docker pull golang:1.15 && docker tag golang:1.15 localhost:8123/golang:1.15 &&  echo dAj4w@7fl | docker login localhost:8123 --username admin --password-stdin && docker push localhost:8123/golang:1.15
-
 linter:
 	gitlab-runner exec docker linter
 
