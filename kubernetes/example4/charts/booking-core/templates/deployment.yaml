@@ -1,0 +1,6 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "booking-core.fullname" }}
+  labels:
+  {{- include "booking-core.labels" . | nindent 4 }}

@@ -1,0 +1,4 @@
+booking_core:
+
+  nameOverride: "booking-core"
+  fullnameOverride: "booking-core"
