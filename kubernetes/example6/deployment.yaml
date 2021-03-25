@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: proxy
+  name: nginx
+  namespace: production
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: proxy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 2
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      volumes:
+        - name: nginx-pv-storage
+          persistentVolumeClaim:
+            claimName: nginx-pvc
+      containers:
+      - image: nginx:1.9
+        name: nginx
+        resources: {}
+        volumeMounts:
+          - mountPath: "/usr/share/nginx/html"
+            name: nginx-pv-storage

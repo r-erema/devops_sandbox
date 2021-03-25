@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: my-server
+  name: my-server
+spec:
+  containers:
+  - image: httpd
+    name: db-server
+    resources: {}
+  - image: alpine
+    name: log-server
+    resources: {}
+  - image: busybox
+    name: file-server
+    resources: {}
+    command:
+      - "sh"
+      - "-c"
+      - "sleep 3600;"
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always

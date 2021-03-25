@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: alpine-pod
+  name: alpine-pod
+  namespace: ckad-ns2
+spec:
+  containers:
+  - image: alpine
+    name: alpine-pod
+    resources: {}
+    command:
+      - sleep
+      - "3600"
+    envFrom:
+      - configMapRef:
+          name: 3-configmap
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+
+---
+apiVersion: v1
+data:
+  external_url: linux.com
+  localport: localhost:8082
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: 3-configmap
+  namespace: ckad-ns2

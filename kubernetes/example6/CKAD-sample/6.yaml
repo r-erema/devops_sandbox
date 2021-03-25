@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: webserver
+  name: webserver
+  namespace: ckad-ns3
+spec:
+  containers:
+  - image: httpd
+    name: webserver
+    resources: {}
+    readinessProbe:
+      initialDelaySeconds: 60
+      periodSeconds: 60
+      exec:
+        command: ["ls", "/"]
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always

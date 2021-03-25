@@ -1,0 +1,19 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: sleepy
+  namespace: production
+spec:
+  jobTemplate:
+    metadata:
+      name: sleepy
+    spec:
+      template:
+        spec:
+          containers:
+          - image: alpine
+            name: sleepy
+            command: [ "/bin/sh","-c" ]
+            args: [ "echo going to sleep; sleep 3s; echo slept well;"]
+          restartPolicy: OnFailure
+  schedule: '*/2 * * * *'

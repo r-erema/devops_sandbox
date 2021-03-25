@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: nginx
+  name: nginx
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: webshop
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: webshop
+    spec:
+      containers:
+      - image: nginx:1.8
+        name: nginx
+        resources: {}
