@@ -6,3 +6,6 @@ terraform.tfvars
 .terraform.tfstate.lock.info
 terraform.tfstate
 terraform.tfstate.backup
+
+managed-cluster.yaml
+managed-cluster.kubeconfig
